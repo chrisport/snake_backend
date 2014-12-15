@@ -4,12 +4,17 @@ import actors.WsActor
 import play.api.libs.iteratee.{Concurrent, Iteratee}
 import play.api.libs.json.{Json, JsValue, JsObject}
 import play.api.mvc.{WebSocket, Controller}
+import play.mvc.Result
 
-object App extends Controller {
+object Application extends Controller {
   import play.api.mvc._
   import play.api.Play.current
 
-  def socket = WebSocket.acceptWithActor[String, String] { request => out =>
+  /*def index: Result = {
+    return Ok(views.html.index.render)
+  }*/
+
+  def ws = WebSocket.acceptWithActor[String, String] { request => out =>
     WsActor.props(out)
   }
 }

@@ -3,12 +3,10 @@ package actors
 import akka.actor._
 import akka.contrib.pattern.DistributedPubSubExtension
 import akka.contrib.pattern.DistributedPubSubMediator.{SubscribeAck, Publish, Subscribe, Unsubscribe}
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.{ObjectNode}
-import play.libs.Json
-import play.mvc.WebSocket
+import play.api.libs.json.{JsObject, Json}
 
-class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor with ActorLogging {
+class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging {
   var mScore: Int = 0
 
   val mediator = DistributedPubSubExtension(context.system).mediator
@@ -20,15 +18,8 @@ class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor wit
     println(s"$mName left the game")
   }
 
-
-  @throws[Exception](classOf[Exception])
-  override def preStart(): Unit = {
-    println("started")
-  }
-
   // client handling
   def receive: Actor.Receive = {
-
     //First step after actor creation
     case GameProtocol.Init =>
       println(s"$mName joined snake")
@@ -41,23 +32,27 @@ class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor wit
 
     //Set new score of this actor
     case GameProtocol.Set(score) =>
+      println(s"$mName: sets score to $score")
       mScore = score
       mediator ! Publish(mTopic, GameProtocol.Update(mName, score))
 
     //Update of another PlayerActor
     case GameProtocol.Update(playerName, score) =>
+      println(s"$mName: update received, new score of $playerName is $score")
       val message = GameProtocol.createUpdateMessage(playerName, score)
-      out.write(message)
+      out ! message.toString()
 
     //Another actor asks for my state
     case GameProtocol.GetState =>
+      println(s"$mName: Another actor wants my score")
       sender() ! GameProtocol.Update(mName, mScore)
 
     //Another PlayerActor quit the game
     case GameProtocol.Quit(playerName) =>
+      println(s"$mName: $playerName quits.")
       if (playerName != mName) {
         val message = GameProtocol.createQuitMessage(playerName)
-        out.write(message)
+        out ! message.toString()
       }
   }
 }
@@ -69,29 +64,27 @@ object GameProtocol {
 
   case class Update(playerName: String, score: Int)
 
-  def createUpdateMessage(playerName: String, score: Int): ObjectNode = {
-    val data: ObjectNode = Json.newObject
-    data.put("name", playerName)
-    data.put("score", score)
-    data.put("event", "set")
-
-    val message: ObjectNode = Json.newObject
-    message.put("data", data)
-    message.put("cmd", "quit")
-    message
+  def createUpdateMessage(playerName: String, score: Int): JsObject = {
+    Json.obj(
+      "cmd" -> "update",
+      "data" -> Json.obj(
+        "name" -> playerName,
+        "score" -> score,
+        "event" -> "set"
+      )
+    )
   }
 
   case class Quit(name: String)
 
-  def createQuitMessage(playerName: String): ObjectNode = {
-    val data: ObjectNode = Json.newObject
-    data.put("name", playerName)
-    data.put("event", "quit")
-
-    val message: ObjectNode = Json.newObject
-    message.put("data", data)
-    message.put("cmd", "quit")
-    message
+  def createQuitMessage(playerName: String): JsObject = {
+    Json.obj(
+      "cmd" -> "update",
+      "data" -> Json.obj(
+        "name" -> playerName,
+        "event" -> "quit"
+      )
+    )
   }
 
   case class Init()

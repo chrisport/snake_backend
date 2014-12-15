@@ -1,12 +1,13 @@
 package actors
 
 import akka.actor._
-import akka.contrib.pattern.DistributedPubSubExtension
-import akka.contrib.pattern.DistributedPubSubMediator.{SubscribeAck, Publish, Subscribe, Unsubscribe}
-import com.fasterxml.jackson.databind.{ObjectMapper, JsonNode}
-import com.fasterxml.jackson.databind.node.{ObjectNode}
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import play.api.libs.concurrent.Akka
+import play.api.libs.json.Json
 import play.libs.Json
-import play.mvc.WebSocket
+import play.api.Play.current
+import play.libs.Json
 
 object WsActor {
   def props(out: ActorRef) = Props(new WsActor(out))
@@ -20,30 +21,33 @@ class WsActor(out: ActorRef) extends Actor {
 
   def receive = {
     case msg: String =>
+      println(msg)
       val jsonNode = mapper.readTree(msg)
       val cmd: String = jsonNode.get("cmd").asText
       if (playerActor == null) {
         System.out.println("actor was null")
         if (cmd == "enter") {
           System.out.println("command is \"enter\"")
-          val player: PlayerActor = new PlayerActor(playerName, out)
+          playerActor = Akka.system.actorOf(Props(classOf[PlayerActor], playerName, out))
           System.out.println("playerActor created")
           val initMessage: GameProtocol.Init = new GameProtocol.Init
+
+          playerActor ! initMessage
           System.out.println("initialized playerActor")
-        }
-        else {
-          val errorData: ObjectNode = Json.newObject
-          errorData.put("message", "First command must be enter")
-          val error: ObjectNode = Json.newObject
-          error.put("cmd", "error")
-          error.put("data", errorData)
+        } else {
+          val error = Json.obj(
+            "cmd" -> "error",
+            "data" -> Json.obj(
+              "message" -> "First command must be enter"
+            )
+          )
           out ! error.toString
         }
       }
       else if (cmd == "update") {
         val score: Int = jsonNode.get("data").get("score").asInt
         val message: GameProtocol.Set = new GameProtocol.Set(score)
-        playerActor.tell(message, null)
+        playerActor ! message
       }
   }
 
