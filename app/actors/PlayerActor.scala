@@ -27,26 +27,26 @@ class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor wit
       println(s"$mName joined snake")
       mediator ! Subscribe(mTopic, self)
 
-     //after subscribe, ask all existing PlayerActor to send me current state
+    //after subscribe, ask all existing PlayerActor to send me current state
     case SubscribeAck(Subscribe(topic, None, `self`)) =>
       println(s"$mName now receives updates")
       mediator ! Publish(topic, GameProtocol.GetState)
 
-      //Set new score of this actor
+    //Set new score of this actor
     case GameProtocol.Set(score) =>
       mScore = score
       mediator ! Publish(mTopic, GameProtocol.Update(mName, score))
 
-      //Update of another PlayerActor
+    //Update of another PlayerActor
     case GameProtocol.Update(playerName, score) =>
       val message = GameProtocol.createUpdateMessage(playerName, score)
       out.write(message)
 
-      //Another PlayerActor asks for my state
+    //Another actor asks for my state
     case GameProtocol.GetState =>
       sender() ! GameProtocol.Update(mName, mScore)
 
-      //Another PlayerActor quit the game
+    //Another PlayerActor quit the game
     case GameProtocol.Quit(playerName) =>
       if (playerName != mName) {
         val message = GameProtocol.createQuitMessage(playerName)
@@ -61,6 +61,7 @@ object GameProtocol {
   case class Set(score: Int)
 
   case class Update(playerName: String, score: Int)
+
   def createUpdateMessage(playerName: String, score: Int): ObjectNode = {
     val data: ObjectNode = Json.newObject
     data.put("name", playerName)
@@ -69,10 +70,12 @@ object GameProtocol {
 
     val message: ObjectNode = Json.newObject
     message.put("data", data)
+    message.put("cmd", "quit")
     message
   }
 
   case class Quit(name: String)
+
   def createQuitMessage(playerName: String): ObjectNode = {
     val data: ObjectNode = Json.newObject
     data.put("name", playerName)
@@ -80,6 +83,7 @@ object GameProtocol {
 
     val message: ObjectNode = Json.newObject
     message.put("data", data)
+    message.put("cmd", "quit")
     message
   }
 
