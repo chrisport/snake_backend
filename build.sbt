@@ -1,4 +1,4 @@
-name := "reactive-stocks"
+name := "snake-backend"
 
 version := "1.0-SNAPSHOT"
 

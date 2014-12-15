@@ -2,12 +2,9 @@ package actors
 
 import akka.actor._
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
 import play.api.libs.concurrent.Akka
 import play.api.libs.json.Json
-import play.libs.Json
 import play.api.Play.current
-import play.libs.Json
 
 object WsActor {
   def props(out: ActorRef) = Props(new WsActor(out))
@@ -28,9 +25,10 @@ class WsActor(out: ActorRef) extends Actor {
         System.out.println("actor was null")
         if (cmd == "enter") {
           System.out.println("command is \"enter\"")
+          playerName = jsonNode.get("data").get("name").textValue()
           playerActor = Akka.system.actorOf(Props(classOf[PlayerActor], playerName, out))
-          System.out.println("playerActor created")
-          val initMessage: GameProtocol.Init = new GameProtocol.Init
+          System.out.println(s"playerActor $playerName created")
+          val initMessage: GameProtocol.Init = new GameProtocol.Init()
 
           playerActor ! initMessage
           System.out.println("initialized playerActor")

@@ -21,7 +21,7 @@ class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging 
   // client handling
   def receive: Actor.Receive = {
     //First step after actor creation
-    case GameProtocol.Init =>
+    case GameProtocol.Init() =>
       println(s"$mName joined snake")
       mediator ! Subscribe(mTopic, self)
 
@@ -38,9 +38,11 @@ class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging 
 
     //Update of another PlayerActor
     case GameProtocol.Update(playerName, score) =>
-      println(s"$mName: update received, new score of $playerName is $score")
-      val message = GameProtocol.createUpdateMessage(playerName, score)
-      out ! message.toString()
+      if (playerName != mName) {
+        println(s"$mName: update received, new score of $playerName is $score")
+        val message = GameProtocol.createUpdateMessage(playerName, score)
+        out ! message.toString()
+      }
 
     //Another actor asks for my state
     case GameProtocol.GetState =>
