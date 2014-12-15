@@ -30,17 +30,19 @@ public class Application extends Controller {
                 System.out.println("ready");
                 // send all WebSocket message to the UserActor
                 in.onMessage(jsonNode -> {
+
                     String cmd = jsonNode.get("cmd").asText();
                     if (playerActor == null) {
                         System.out.println("actor was null");
 
                         if (cmd.equals("enter")) {
                             System.out.println("command is \"enter\"");
-                            playerActor = Akka.system().actorOf(Props.create(PlayerActor.class, out, playerName));
+                            PlayerActor player = new PlayerActor(playerName, out);
+                            //playerActor = Akka.system().actorOf(Props.create(PlayerActor.class, player));
                             System.out.println("playerActor created");
 
                             GameProtocol.Init initMessage = new GameProtocol.Init();
-                            playerActor.tell(initMessage, null);
+                            //playerActor.tell(initMessage, null);
                             System.out.println("initialized playerActor");
 
                         } else {

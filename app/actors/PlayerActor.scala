@@ -10,6 +10,7 @@ import play.mvc.WebSocket
 
 class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor with ActorLogging {
   var mScore: Int = 0
+
   val mediator = DistributedPubSubExtension(context.system).mediator
   val mTopic = "playersstats"
 
@@ -17,6 +18,12 @@ class PlayerActor(mName: String, out: WebSocket.Out[JsonNode]) extends Actor wit
     mediator ! Unsubscribe(mTopic, self)
     mediator ! Publish(mTopic, GameProtocol.Quit(mName))
     println(s"$mName left the game")
+  }
+
+
+  @throws[Exception](classOf[Exception])
+  override def preStart(): Unit = {
+    println("started")
   }
 
   // client handling
