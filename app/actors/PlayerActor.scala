@@ -27,7 +27,6 @@ class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
       println(s"$mName joined snake")
       context become playing
       mediator ! Subscribe(mTopic, self)
-
     case _ =>
       val error = Json.obj(
         "cmd" -> "error",
@@ -43,7 +42,7 @@ class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
     //after subscribe, ask all existing PlayerActor to send me current state
     case SubscribeAck(Subscribe(topic, None, `self`)) =>
       println(s"$mName now receives updates")
-      mediator ! Publish(topic, GameProtocol.GetState)
+      mediator ! Publish(topic, GameProtocol.GetState(mName))
 
     //Set new score of this actor
     case GameProtocol.Set(score) =>
@@ -60,9 +59,11 @@ class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
       }
 
     //Another actor asks for my state
-    case GameProtocol.GetState =>
-      println(s"$mName: Another actor wants my score")
-      sender() ! GameProtocol.Update(mName, mScore)
+    case GameProtocol.GetState(playerName) =>
+      if (playerName != mName) {
+        println(s"$mName: Another actor wants my score")
+        sender() ! GameProtocol.Update(mName, mScore)
+      }
 
     //Another PlayerActor quit the game
     case GameProtocol.Quit(playerName) =>
@@ -74,6 +75,22 @@ class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
   }
 
 }
+/*
+  def receive:Receive = enterReceive orElse updateReceive orElse {
+    case msg =>
+      log.error(s"unknown message $msg")
+  }
+
+  def enterReceive:Receive = {
+    case "enter" =>
+
+  }
+
+  def updateReceive:Receive = {
+    case "enter" =>
+
+  }
+ */
 
 
 object GameProtocol {
@@ -107,7 +124,7 @@ object GameProtocol {
 
   case class Init(playerName: String)
 
-  case class GetState()
+  case class GetState(playerName: String)
 
 
 }
