@@ -17,7 +17,7 @@ class WsActor(out: ActorRef) extends Actor with ActorLogging {
   def receive = {
     case msg: String =>
       log.info("Incoming message: " + msg)
-      val json = Json.parse(msg)
+      val json = parseJson(msg)
       json.validate(ClientCommand.reader).map {
 
         case initMessage @ GameProtocol.Init(playerName) =>
@@ -42,10 +42,18 @@ class WsActor(out: ActorRef) extends Actor with ActorLogging {
           val error = Json.obj(
             "cmd" -> "error",
             "data" -> Json.obj(
-              "message" -> s"Missing cmd"
+              "message" -> s"Malformed request. Required json format and cmd-field"
             )
           )
           out ! error.toString
       }
+  }
+
+  def parseJson(msg: String): JsValue = {
+    try {
+      Json.parse(msg)
+    } catch {
+      case e: Exception => Json.obj()
+    }
   }
 }

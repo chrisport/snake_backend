@@ -13,7 +13,6 @@ object ClientCommand {
 
   def reader = (cmdReads and dataReads)(
     (cmd, body) => cmd match {
-
       case "enter" if (body \ "name").asOpt[String].isDefined =>
         GameProtocol.Init((body \ "name").asOpt[String].get)
       case "update" if (body \ "score").asOpt[Int].isDefined=>
