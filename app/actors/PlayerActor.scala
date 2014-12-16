@@ -6,11 +6,12 @@ import akka.contrib.pattern.DistributedPubSubMediator.{SubscribeAck, Publish, Su
 import com.fasterxml.jackson.databind.node.{ObjectNode}
 import play.api.libs.json.{JsObject, Json}
 
-class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging {
+class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
   var mScore: Int = 0
 
   val mediator = DistributedPubSubExtension(context.system).mediator
   val mTopic = "playersstats"
+  var mName = "unnamed"
 
   override def postStop(): Unit = {
     mediator ! Unsubscribe(mTopic, self)
@@ -18,13 +19,27 @@ class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging 
     println(s"$mName left the game")
   }
 
-  // client handling
+  // initial state
   def receive: Actor.Receive = {
     //First step after actor creation
-    case GameProtocol.Init() =>
+    case GameProtocol.Init(playerName) =>
+      mName = playerName
       println(s"$mName joined snake")
+      context become playing
       mediator ! Subscribe(mTopic, self)
 
+    case _ =>
+      val error = Json.obj(
+        "cmd" -> "error",
+        "data" -> Json.obj(
+          "message" -> "First command must be enter"
+        )
+      )
+      out ! error.toString
+  }
+
+  // playing state
+  def playing: Actor.Receive = {
     //after subscribe, ask all existing PlayerActor to send me current state
     case SubscribeAck(Subscribe(topic, None, `self`)) =>
       println(s"$mName now receives updates")
@@ -57,6 +72,7 @@ class PlayerActor(mName: String, out: ActorRef) extends Actor with ActorLogging 
         out ! message.toString()
       }
   }
+
 }
 
 
@@ -89,7 +105,7 @@ object GameProtocol {
     )
   }
 
-  case class Init()
+  case class Init(playerName: String)
 
   case class GetState()
 

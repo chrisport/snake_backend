@@ -10,10 +10,6 @@ object Application extends Controller {
   import play.api.mvc._
   import play.api.Play.current
 
-  /*def index: Result = {
-    return Ok(views.html.index.render)
-  }*/
-
   def ws = WebSocket.acceptWithActor[String, String] { request => out =>
     WsActor.props(out)
   }
