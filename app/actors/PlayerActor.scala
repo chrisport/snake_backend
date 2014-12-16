@@ -37,61 +37,47 @@ class PlayerActor(out: ActorRef) extends Actor with ActorLogging {
       out ! error.toString
   }
 
+  def playing: Receive = receivePubsubUpdates orElse receiveClientMessage orElse {
+    case msg =>
+      //log.error(s"unknown message $msg")
+  }
+
   // playing state
-  def playing: Actor.Receive = {
+  def receivePubsubUpdates: Actor.Receive = {
     //after subscribe, ask all existing PlayerActor to send me current state
     case SubscribeAck(Subscribe(topic, None, `self`)) =>
-      println(s"$mName now receives updates")
+      log.info(s"$mName now receives updates")
       mediator ! Publish(topic, GameProtocol.GetState(mName))
 
+    //Update of another PlayerActor
+    case GameProtocol.Update(playerName, score) if playerName != mName =>
+      log.info(s"$mName: update received, new score of $playerName is $score")
+      val message = GameProtocol.createUpdateMessage(playerName, score)
+      out ! message.toString()
+
+    //Another PlayerActor quit the game
+    case GameProtocol.Quit(playerName) if playerName != mName =>
+      log.info(s"$mName: $playerName quits.")
+      val message = GameProtocol.createQuitMessage(playerName)
+      out ! message.toString()
+  }
+
+  def receiveClientMessage: Actor.Receive = {
     //Set new score of this actor
-    case GameProtocol.Set(score) =>
-      println(s"$mName: sets score to $score")
+    case GameProtocol.Set(score) if score == 0 || score > mScore =>
+      log.info(s"$mName: sets score to $score")
       mScore = score
       mediator ! Publish(mTopic, GameProtocol.Update(mName, score))
-
-    //Update of another PlayerActor
-    case GameProtocol.Update(playerName, score) =>
-      if (playerName != mName) {
-        println(s"$mName: update received, new score of $playerName is $score")
-        val message = GameProtocol.createUpdateMessage(playerName, score)
-        out ! message.toString()
-      }
 
     //Another actor asks for my state
     case GameProtocol.GetState(playerName) =>
       if (playerName != mName) {
-        println(s"$mName: Another actor wants my score")
+        log.info(s"$mName: Another actor wants my score")
         sender() ! GameProtocol.Update(mName, mScore)
-      }
-
-    //Another PlayerActor quit the game
-    case GameProtocol.Quit(playerName) =>
-      println(s"$mName: $playerName quits.")
-      if (playerName != mName) {
-        val message = GameProtocol.createQuitMessage(playerName)
-        out ! message.toString()
       }
   }
 
 }
-/*
-  def receive:Receive = enterReceive orElse updateReceive orElse {
-    case msg =>
-      log.error(s"unknown message $msg")
-  }
-
-  def enterReceive:Receive = {
-    case "enter" =>
-
-  }
-
-  def updateReceive:Receive = {
-    case "enter" =>
-
-  }
- */
-
 
 object GameProtocol {
 

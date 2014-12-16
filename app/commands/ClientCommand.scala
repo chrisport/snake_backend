@@ -13,9 +13,12 @@ object ClientCommand {
 
   def reader = (cmdReads and dataReads)(
     (cmd, body) => cmd match {
-      case "enter" => GameProtocol.Init((body \ "name").as[String])
-      case "update" => GameProtocol.Set((body \ "score").as[Int])
-      case _ => cmd
+
+      case "enter" if (body \ "name").asOpt[String].isDefined =>
+        GameProtocol.Init((body \ "name").asOpt[String].get)
+      case "update" if (body \ "score").asOpt[Int].isDefined=>
+          GameProtocol.Set((body \ "score").asOpt[Int].get)
+      case _ => s"malformed request: $cmd, $body"
     }
   )
 }
